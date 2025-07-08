@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IEC 101/104规约报文解析器v2.0</title>
+  <style>
+    :root {
+      --primary-color: #3498db;
+      --primary-hover: #2980b9;
+      --success-color: #27ae60;
+      --error-color: #e74c3c;
+      --warning-color: #f39c12;
+      --text-color: #2c3e50;
+      --bg-color: #ecf0f1;
+      --card-bg: #ffffff;
+      --border-color: #bdc3c7;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+      color: white;
+      padding: 30px 0;
+      margin: -20px -20px 30px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-header {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: var(--primary-color);
+      border-radius: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: var(--text-color);
+    }
+
+    textarea, select, input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      background-color: #f8f9fa;
+    }
+
+    textarea:focus, select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: #95a5a6;
+    }
+
+    button.secondary:hover {
+      background: #7f8c8d;
+    }
+
+    button.success {
+      background: var(--success-color);
+    }
+
+    button.success:hover {
+      background: #229954;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      font-weight: 500;
+      color: #7f8c8d;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .tab:hover {
+      color: var(--primary-color);
+    }
+
+    .tab.active {
+      color: var(--primary-color);
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--primary-color);
+    }
+
+    .result-content {
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .result-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .result-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    .result-content::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+
+    .result-content::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    .result-json {
+      display: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .error {
+      background: #fadbd8;
+      color: var(--error-color);
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-top: 10px;
+      display: none;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .warning {
+      background: #fcf3cf;
+      color: #7d6608;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .field-explanation {
+      font-size: 13px;
+      color: #7f8c8d;
+      margin-top: 5px;
+    }
+
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+    }
+
+    .example {
+      padding: 15px;
+      background: #e8f4fd;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .example:hover {
+      background: #d4edfc;
+      transform: translateX(5px);
+    }
+
+    .example-title {
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 5px;
+    }
+
+    .example-hex {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      color: #7f8c8d;
+      word-break: break-all;
+    }
+
+    .help-section {
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 2px solid var(--border-color);
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .help-item {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .help-item h4 {
+      color: var(--primary-color);
+      margin-bottom: 10px;
+    }
+
+    .log-output {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .log-entry::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: var(--primary-color);
+    }
+
+    .log-entry.error::before {
+      color: var(--error-color);
+      content: '✗';
+    }
+
+    .log-entry.success::before {
+      color: var(--success-color);
+      content: '✓';
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #1a1a1a;
+        --card-bg: #2c2c2c;
+        --text-color: #e0e0e0;
+        --border-color: #404040;
+      }
+
+      textarea, select, input[type="text"] {
+        background-color: #3c3c3c;
+        color: #e0e0e0;
+      }
+
+      .result-content {
+        background: #3c3c3c;
+        color: #e0e0e0;
+      }
+
+      .help-item {
+        background: #3c3c3c;
+      }
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .tab {
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+    }
+
+    /* Loading animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      cursor: help;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 200px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -100px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>IEC 101/104 规约报文解析器</h1>
+      <p>专业的电力系统通信规约分析工具 v2.0</p>
+     <p style="margin-top: 10px; color: #666;">如有问题请反馈icevivi8@gmail.com邮箱，谢谢</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid" id="statsGrid" style="display: none;">
+      <div class="stat-card">
+        <div class="stat-value" id="totalParsed">0</div>
+        <div class="stat-label">总解析数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="successRate">0%</div>
+        <div class="stat-label">成功率</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="lastProtocol">-</div>
+        <div class="stat-label">最近协议</div>
+      </div>
+    </div>
+
+    <!-- Protocol Selection -->
+    <div class="card">
+      <div class="card-header">协议配置</div>
+      <div class="form-group">
+        <label for="protocol">选择规约类型：</label>
+        <select id="protocol">
+          <option value="104">IEC 60870-5-104 (网络传输)</option>
+          <option value="101">IEC 60870-5-101 (串口传输)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="card">
+      <div class="card-header">报文输入</div>
+      <div class="form-group">
+        <label for="hexInput">
+          输入十六进制报文数据：
+          <span class="tooltip">ⓘ
+            <span class="tooltiptext">支持空格、逗号、冒号分隔的十六进制数据</span>
+          </span>
+        </label>
+        <textarea id="hexInput" placeholder="例如: 68 04 83 00 00 00&#10;或者: 68:04:83:00:00:00&#10;批量模式下每行一个报文"></textarea>
+      </div>
+      
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="batchMode">
+        <label for="batchMode">批量解析模式（每行一条报文）</label>
+      </div>
+
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="autoTimestamp">
+        <label for="autoTimestamp">自动添加时间戳</label>
+      </div>
+
+      <div id="parseError" class="error"></div>
+
+      <div class="button-group">
+        <button id="parseButton">
+          <span>🔍</span> 解析报文
+        </button>
+        <button id="clearButton" class="secondary">
+          <span>🗑️</span> 清空
+        </button>
+        <button id="downloadResultButton" class="success">
+          <span>💾</span> 下载结果
+        </button>
+        <button id="exportExcelButton" class="success">
+          <span>📊</span> 导出Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Device Mapping -->
+    <div class="card">
+      <div class="card-header">设备映射配置</div>
+      <div class="form-group">
+        <label for="deviceMappingSelect">设备映射方案：</label>
+        <select id="deviceMappingSelect">
+          <option value="default">默认电力设备映射</option>
+          <option value="extended">扩展设备映射</option>
+          <option value="substation">变电站设备映射</option>
+          <option value="custom">自定义映射</option>
+        </select>
+      </div>
+      
+      <div id="customMappingArea" style="display:none;">
+        <div class="form-group">
+          <label for="customMappingInput">
+            自定义映射（JSON格式）：
+            <button id="loadMappingTemplate" style="float: right; padding: 5px 10px; font-size: 12px;">
+              加载模板
+            </button>
+          </label>
+          <textarea id="customMappingInput" placeholder='{"1": "自定义设备名称", "2": "另一个设备"}'></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <div class="card-header">解析结果</div>
+      <div class="tabs">
+        <button class="tab active" data-target="parsed">格式化结果</button>
+        <button class="tab" data-target="json">JSON数据</button>
+        <button class="tab" data-target="hex">十六进制分析</button>
+      </div>
+      <div id="parsed" class="result-content"></div>
+      <div id="json" class="result-content result-json"></div>
+      <div id="hex" class="result-content" style="display: none;"></div>
+    </div>
+
+    <!-- Log Output -->
+    <div class="card">
+      <div class="card-header">
+        日志输出
+        <button id="clearLogButton" style="float: right; padding: 5px 10px; font-size: 12px;">
+          清空日志
+        </button>
+      </div>
+      <div id="logOutput" class="log-output"></div>
+    </div>
+
+    <!-- Examples -->
+    <div class="card">
+      <div class="card-header">快速示例</div>
+      <div class="examples-grid">
+        <div class="example" data-protocol="104" data-hex="68 0E 00 00 00 00 64 01 06 00 01 00 00 00 00 14">
+          <div class="example-title">104 - 启动帧 (STARTDT ACT)</div>
+          <div class="example-hex">68 0E 00 00 00 00 64 01 06 00...</div>
+        </div>
+        <div class="example" data-protocol="104" data-hex="68 0E 01 00 00 00 64 01 0A 00 01 00 00 00 00 14">
+          <div class="example-title">104 - 总召唤命令</div>
+          <div class="example-hex">68 0E 01 00 00 00 64 01 0A 00...</div>
+        </div>
+        <div class="example" data-protocol="104" data-hex="68 14 11 00 0C 00 01 03 01 00 01 00 00 00 00 14 01 00 00 00 03">
+          <div class="example-title">104 - 单点遥信 (合闸)</div>
+          <div class="example-hex">68 14 11 00 0C 00 01 03 01 00...</div>
+        </div>
+        <div class="example" data-protocol="104" data-hex="68 14 12 00 0C 00 01 03 01 00 02 00 00 00 00 14 00 00 00 00 03">
+          <div class="example-title">104 - 单点遥信 (分闸)</div>
+          <div class="example-hex">68 14 12 00 0C 00 01 03 01 00...</div>
+        </div>
+        <div class="example" data-protocol="104" data-hex="68 14 13 00 0C 00 03 03 01 00 03 00 00 00 00 14 01 00 00 00 03">
+          <div class="example-title">104 - 双点遥信 (分闸)</div>
+          <div class="example-hex">68 14 13 00 0C 00 03 03 01 00...</div>
+        </div>
+        <div class="example" data-protocol="104" data-hex="68 14 14 00 0C 00 03 03 01 00 04 00 00 00 00 14 02 00 00 00 03">
+          <div class="example-title">104 - 双点遥信 (合闸)</div>
+          <div class="example-hex">68 14 14 00 0C 00 03 03 01 00...</div>
+        </div>
+        <div class="example" data-protocol="101" data-hex="10 49 01 4A 16">
+          <div class="example-title">101 - 请求链路状态</div>
+          <div class="example-hex">10 49 01 4A 16</div>
+        </div>
+        <div class="example" data-protocol="101" data-hex="68 09 09 68 08 01 64 01 06 00 01 00 00 00 00 14 8F 16">
+          <div class="example-title">101 - 总召唤</div>
+          <div class="example-hex">68 09 09 68 08 01 64 01 06 00...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="help-section">
+      <h3>使用帮助</h3>
+      <div class="help-grid">
+        <div class="help-item">
+          <h4>🚀 快速开始</h4>
+          <p>1. 选择协议类型（104或101）</p>
+          <p>2. 输入十六进制报文</p>
+          <p>3. 点击"解析报文"按钮</p>
+        </div>
+        <div class="help-item">
+          <h4>📊 批量处理</h4>
+          <p>勾选"批量解析模式"</p>
+          <p>每行输入一条报文</p>
+          <p>支持导出Excel报表</p>
+        </div>
+        <div class="help-item">
+          <h4>🔧 自定义映射</h4>
+          <p>选择"自定义映射"选项</p>
+          <p>输入JSON格式的映射数据</p>
+          <p>可使用模板快速开始</p>
+        </div>
+        <div class="help-item">
+          <h4>💡 提示技巧</h4>
+          <p>点击示例快速填充</p>
+          <p>支持多种分隔符</p>
+          <p>自动时间戳记录</p>
+        </div>
+      </div>
+      
+      <div style="margin-top: 30px; text-align: center; color: #7f8c8d;">
+        <p>© 2024 IEC Protocol Parser | Version 2.0 | Developed by hanhan</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===========================
+    // 全局配置和工具函数
+    // ===========================
+    const Config = {
+      MAX_BATCH_SIZE: 1000,
+      EXPORT_CHUNK_SIZE: 100,
+      LOG_MAX_ENTRIES: 500,
+      ANIMATION_DURATION: 300
+    };
+
+    const Utils = {
+      // 十六进制字符串转字节数组
+      hexStringToBytes(hexString) {
+        const cleanedHex = hexString.replace(/[^0-9A-Fa-f]/g, '');
+        if (cleanedHex.length % 2 !== 0) {
+          throw new Error('无效的十六进制字符串：长度必须是偶数');
+        }
+        const bytes = [];
+        for (let i = 0; i < cleanedHex.length; i += 2) {
+          bytes.push(parseInt(cleanedHex.substr(i, 2), 16));
+        }
+        return bytes;
+      },
+
+      // 字节转十六进制
+      byteToHex(byte) {
+        return byte.toString(16).padStart(2, '0').toUpperCase();
+      },
+
+      // 字节数组转十六进制字符串
+      bytesToHexString(bytes) {
+        return bytes.map(b => this.byteToHex(b)).join(' ');
+      },
+
+      // 格式化日期时间
+      formatDateTime(date = new Date()) {
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          fractionalSecondDigits: 3
+        });
+      },
+
+      // 下载文件
+      downloadFile(content, filename, type = 'application/json') {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
+
+      // 防抖函数
+      debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+    };
+
+    // ===========================
+    // IEC 104 解析器类
+    // ===========================
+    class IEC104Parser {
+      constructor() {
+        this.addressLength = 3; // 默认地址长度
+        this.customDeviceMapping = null;
+        this.warnings = [];
+        this.statistics = {
+          totalParsed: 0,
+          successCount: 0,
+          errorCount: 0
+        };
+      }
+
+      parse(bytes) {
+        this.warnings = [];
+        this.statistics.totalParsed++;
+
+        try {
+          if (bytes.length < 6) {
+            throw new Error('104报文长度太短，至少需要6个字节');
+          }
+
+          if (bytes[0] !== 0x68) {
+            throw new Error('无效的104报文：起始字符不是0x68');
+          }
+
+          const result = {
+            raw: Utils.bytesToHexString(bytes),
+            protocol: 'IEC104',
+            timestamp: new Date().toISOString(),
+            apci: {
+              startByte: '0x' + Utils.byteToHex(bytes[0]),
+              length: bytes[1]
+            },
+            controlFields: {},
+            asdu: null,
+            warnings: this.warnings
+          };
+
+          // 验证APCI长度
+          if (bytes[1] !== bytes.length - 2) {
+            this.warnings.push(`APCI长度字段(${bytes[1]})与实际数据长度(${bytes.length - 2})不匹配`);
+          }
+
+          const controlType = this.determineControlType(bytes);
+          result.controlFields.type = controlType;
+
+          if (controlType === 'I_FORMAT') {
+            result.controlFields.sendSeqNum = ((bytes[2] & 0xFE) >> 1) | ((bytes[3] & 0x7F) << 7);
+            result.controlFields.receiveSeqNum = ((bytes[4] & 0xFE) >> 1) | ((bytes[5] & 0x7F) << 7);
+          } else if (controlType === 'S_FORMAT') {
+            result.controlFields.receiveSeqNum = ((bytes[4] & 0xFE) >> 1) | ((bytes[5] & 0x7F) << 7);
+          } else {
+            const controlBits = bytes[2];
+            result.controlFields.function = this.parseUFormatFunction(controlBits);
+          }
+
+          if (controlType === 'I_FORMAT' && bytes.length > 6) {
+            result.asdu = this.parseASdu(bytes.slice(6));
+          }
+
+          this.statistics.successCount++;
+          return result;
+        } catch (error) {
+          this.statistics.errorCount++;
+          throw error;
+        }
+      }
+
+      determineControlType(bytes) {
+        const controlByte = bytes[2];
+        if ((controlByte & 0x01) === 0) {
+          return 'I_FORMAT';
+        } else if ((controlByte & 0x03) === 0x01) {
+          return 'S_FORMAT';
+        } else {
+          return 'U_FORMAT';
+        }
+      }
+
+      parseUFormatFunction(controlByte) {
+        const functions = [
+          { mask: 0x04, value: 0x04, name: 'STARTDT ACT' },
+          { mask: 0x08, value: 0x08, name: 'STARTDT CON' },
+          { mask: 0x10, value: 0x10, name: 'STOPDT ACT' },
+          { mask: 0x20, value: 0x20, name: 'STOPDT CON' },
+          { mask: 0x40, value: 0x40, name: 'TESTFR ACT' },
+          { mask: 0x80, value: 0x80, name: 'TESTFR CON' }
+        ];
+
+        for (const func of functions) {
+          if ((controlByte & func.mask) === func.value) {
+            return func.name;
+          }
+        }
+        return '未知U格式功能';
+      }
+
+      parseASdu(bytes) {
+        if (bytes.length < 6) {
+          return { error: 'ASDU数据不完整' };
+        }
+
+        const asdu = {
+          typeId: bytes[0],
+          typeIdName: this.getTypeIdName(bytes[0]),
+          variableStructure: (bytes[1] & 0x80) !== 0,
+          numberOfObjects: bytes[1] & 0x7F,
+          causeOfTransmission: {
+            code: bytes[2] & 0x3F,
+            test: (bytes[2] & 0x80) !== 0,
+            negative: (bytes[2] & 0x40) !== 0
+          },
+          originatorAddress: bytes[3],
+          commonAddress: (bytes[5] << 8) | bytes[4],
+          informationObjects: [],
+          warnings: []
+        };
+
+        asdu.causeOfTransmission.name = this.getCotName(asdu.causeOfTransmission.code);
+
+        let offset = 6;
+        const isSQ = asdu.variableStructure;
+
+        if (isSQ) {
+          // 顺序结构
+          const baseAddress = this.parseAddress(bytes, offset);
+          offset += this.addressLength;
+
+          for (let i = 0; i < asdu.numberOfObjects; i++) {
+            const ioResult = this.parseInformationElement(bytes, offset, asdu.typeId);
+            if (ioResult) {
+              asdu.informationObjects.push({
+                address: baseAddress + i,
+                deviceName: this.getDeviceName(baseAddress + i),
+                elements: [ioResult.data]
+              });
+              offset = ioResult.nextOffset;
+            } else {
+              asdu.warnings.push(`解析信息元素失败，位置: ${offset}`);
+              break;
+            }
+          }
+        } else {
+          // 非顺序结构
+          for (let i = 0; i < asdu.numberOfObjects; i++) {
+            const ioResult = this.parseInformationObject(bytes, offset, asdu.typeId);
+            if (ioResult) {
+              asdu.informationObjects.push(ioResult.data);
+              offset = ioResult.nextOffset;
+            } else {
+              asdu.warnings.push(`解析信息对象失败，位置: ${offset}`);
+              break;
+            }
+          }
+        }
+
+        this.warnings = this.warnings.concat(asdu.warnings);
+        return asdu;
+      }
+
+      parseAddress(bytes, offset) {
+        let address = 0;
+        for (let i = 0; i < this.addressLength; i++) {
+          if (offset + i >= bytes.length) return 0;
+          address |= bytes[offset + i] << (i * 8);
+        }
+        return address;
+      }
+
+      parseInformationObject(bytes, offset, typeId) {
+        const address = this.parseAddress(bytes, offset);
+        offset += this.addressLength;
+
+        const io = {
+          address: address,
+          deviceName: this.getDeviceName(address),
+          elements: []
+        };
+
+        const elementResult = this.parseInformationElement(bytes, offset, typeId);
+        if (elementResult) {
+          io.elements.push(elementResult.data);
+          offset = elementResult.nextOffset;
+
+          if (this.hasTimeTag(typeId)) {
+            const timeResult = this.parseTimeTag(bytes, offset);
+            if (timeResult) {
+              io.timeTag = timeResult.data;
+              offset = timeResult.nextOffset;
+            }
+          }
+        }
+
+        return { data: io, nextOffset: offset };
+      }
+
+      parseInformationElement(bytes, offset, typeId) {
+        const parsers = {
+          1: this.parseSinglePoint,
+          3: this.parseDoublePoint,
+          9: this.parseNormalizedValue,
+          11: this.parseScaledValue,
+          13: this.parseFloatValue,
+          30: this.parseSinglePointWithTime,
+          31: this.parseDoublePointWithTime,
+          45: this.parseSingleCommand,
+          46: this.parseDoubleCommand,
+          100: this.parseInterrogationCommand
+        };
+
+        const parser = parsers[typeId] || this.parseGenericElement;
+        return parser.call(this, bytes, offset);
+      }
+
+      parseSinglePoint(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        const value = bytes[offset];
+        return {
+          data: {
+            type: 'SinglePoint',
+            value: (value & 0x01) !== 0,
+            state: (value & 0x01) ? '合闸' : '分闸',
+            quality: this.parseQuality(value >> 1)
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseDoublePoint(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        const value = bytes[offset];
+        const doublePointValue = value & 0x03;
+        const states = ['不确定或中间状态', '确定分闸', '确定合闸', '不确定'];
+        
+        return {
+          data: {
+            type: 'DoublePoint',
+            value: doublePointValue,
+            state: states[doublePointValue],
+            quality: this.parseQuality(value >> 2)
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseNormalizedValue(bytes, offset) {
+        if (offset + 2 >= bytes.length) return null;
+        const value = (bytes[offset + 1] << 8) | bytes[offset];
+        const signedValue = (value & 0x8000) ? -(0x10000 - value) : value;
+        const normalizedValue = signedValue / 32767.0;
+
+        return {
+          data: {
+            type: 'NormalizedValue',
+            rawValue: signedValue,
+            value: normalizedValue,
+            percentage: (normalizedValue * 100).toFixed(2) + '%',
+            quality: this.parseQuality(bytes[offset + 2] || 0)
+          },
+          nextOffset: offset + 3
+        };
+      }
+
+      parseScaledValue(bytes, offset) {
+        if (offset + 2 >= bytes.length) return null;
+        const value = (bytes[offset + 1] << 8) | bytes[offset];
+        const signedValue = (value & 0x8000) ? -(0x10000 - value) : value;
+
+        return {
+          data: {
+            type: 'ScaledValue',
+            value: signedValue,
+            quality: this.parseQuality(bytes[offset + 2] || 0)
+          },
+          nextOffset: offset + 3
+        };
+      }
+
+      parseFloatValue(bytes, offset) {
+        if (offset + 4 >= bytes.length) return null;
+        const buffer = new ArrayBuffer(4);
+        const view = new DataView(buffer);
+        
+        for (let i = 0; i < 4; i++) {
+          view.setUint8(i, bytes[offset + i]);
+        }
+        
+        const value = view.getFloat32(0, true);
+
+        return {
+          data: {
+            type: 'FloatValue',
+            value: value,
+            formatted: value.toFixed(3),
+            quality: this.parseQuality(bytes[offset + 4] || 0)
+          },
+          nextOffset: offset + 5
+        };
+      }
+
+      parseSinglePointWithTime(bytes, offset) {
+        const pointResult = this.parseSinglePoint(bytes, offset);
+        if (!pointResult) return null;
+
+        const timeResult = this.parseTimeTag(bytes, pointResult.nextOffset);
+        if (timeResult) {
+          pointResult.data.timeTag = timeResult.data;
+          pointResult.nextOffset = timeResult.nextOffset;
+        }
+
+        return pointResult;
+      }
+
+      parseDoublePointWithTime(bytes, offset) {
+        const pointResult = this.parseDoublePoint(bytes, offset);
+        if (!pointResult) return null;
+
+        const timeResult = this.parseTimeTag(bytes, pointResult.nextOffset);
+        if (timeResult) {
+          pointResult.data.timeTag = timeResult.data;
+          pointResult.nextOffset = timeResult.nextOffset;
+        }
+
+        return pointResult;
+      }
+
+      parseSingleCommand(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        const value = bytes[offset];
+        const command = value & 0x01;
+        const qualifier = (value >> 2) & 0x1F;
+        const select = (value & 0x80) !== 0;
+
+        return {
+          data: {
+            type: 'SingleCommand',
+            command: command === 1 ? '合闸' : '分闸',
+            qualifier: this.getQualifierName(qualifier),
+            select: select ? '选择' : '执行'
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseDoubleCommand(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        const value = bytes[offset];
+        const commandState = value & 0x03;
+        const states = ['不允许', '分闸', '合闸', '不允许'];
+
+        return {
+          data: {
+            type: 'DoubleCommand',
+            value: commandState,
+            state: states[commandState],
+            qualifier: this.getQualifierName((value >> 2) & 0x1F),
+            select: (value & 0x80) ? '选择' : '执行'
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseInterrogationCommand(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        const qualifier = bytes[offset];
+
+        return {
+          data: {
+            type: 'InterrogationCommand',
+            qualifier: qualifier,
+            description: this.getInterrogationQualifier(qualifier)
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseGenericElement(bytes, offset) {
+        if (offset >= bytes.length) return null;
+        return {
+          data: {
+            type: 'Generic',
+            rawValue: '0x' + Utils.byteToHex(bytes[offset])
+          },
+          nextOffset: offset + 1
+        };
+      }
+
+      parseQuality(qualityByte) {
+        return {
+          overflow: (qualityByte & 0x01) !== 0,
+          blocked: (qualityByte & 0x10) !== 0,
+          substituted: (qualityByte & 0x20) !== 0,
+          notTopical: (qualityByte & 0x40) !== 0,
+          invalid: (qualityByte & 0x80) !== 0
+        };
+      }
+
+      parseTimeTag(bytes, offset) {
+        if (offset + 6 >= bytes.length) return null;
+
+        const milliseconds = bytes[offset] | (bytes[offset + 1] << 8);
+        const second = milliseconds / 1000;
+        const minute = bytes[offset + 2] & 0x3F;
+        const hour = bytes[offset + 3] & 0x1F;
+        const day = bytes[offset + 4] & 0x1F;
+        const month = bytes[offset + 5] & 0x0F;
+        const year = 2000 + (bytes[offset + 6] & 0x7F);
+
+        return {
+          data: {
+            milliseconds: milliseconds % 1000,
+            second: Math.floor(second),
+            minute: minute,
+            hour: hour,
+            day: day,
+            month: month,
+            year: year,
+            formatted: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(Math.floor(second)).padStart(2, '0')}.${String(milliseconds % 1000).padStart(3, '0')}`,
+            summerTime: (bytes[offset + 3] & 0x80) !== 0,
+            invalid: (bytes[offset + 2] & 0x80) !== 0
+          },
+          nextOffset: offset + 7
+        };
+      }
+
+      hasTimeTag(typeId) {
+        return (typeId >= 30 && typeId <= 40) || (typeId >= 58 && typeId <= 64);
+      }
+
+      getQualifierName(qualifier) {
+        const qualifiers = {
+          0: '无附加定义',
+          1: '短脉冲持续时间',
+          2: '长脉冲持续时间',
+          3: '持续输出'
+        };
+        return qualifiers[qualifier] || `限定词: ${qualifier}`;
+      }
+
+      getInterrogationQualifier(qualifier) {
+        if (qualifier === 20) return '站总召唤';
+        if (qualifier >= 21 && qualifier <= 36) return `第${qualifier - 20}组召唤`;
+        if (qualifier === 37) return '累计量总召唤';
+        if (qualifier >= 38 && qualifier <= 41) return `第${qualifier - 37}组累计量召唤`;
+        return `未知限定词: ${qualifier}`;
+      }
+
+      getTypeIdName(typeId) {
+        const types = {
+          1: '单点信息(M_SP_NA_1)',
+          2: '带时标的单点信息(M_SP_TA_1)',
+          3: '双点信息(M_DP_NA_1)',
+          4: '带时标的双点信息(M_DP_TA_1)',
+          5: '步位置信息(M_ST_NA_1)',
+          6: '带时标的步位置信息(M_ST_TA_1)',
+          7: '32比特串(M_BO_NA_1)',
+          8: '带时标的32比特串(M_BO_TA_1)',
+          9: '测量值，规一化值(M_ME_NA_1)',
+          10: '带时标的测量值，规一化值(M_ME_TA_1)',
+          11: '测量值，标度化值(M_ME_NB_1)',
+          12: '带时标的测量值，标度化值(M_ME_TB_1)',
+          13: '测量值，短浮点数(M_ME_NC_1)',
+          14: '带时标的测量值，短浮点数(M_ME_TC_1)',
+          15: '累计量(M_IT_NA_1)',
+          16: '带时标的累计量(M_IT_TA_1)',
+          17: '带时标的继电保护装置事件(M_EP_TA_1)',
+          18: '带时标的继电保护装置成组启动事件(M_EP_TB_1)',
+          19: '带时标的继电保护装置成组输出电路信息(M_EP_TC_1)',
+          20: '带时标的成组单点信息(M_PS_NA_1)',
+          21: '测量值，不带品质描述词的规一化值(M_ME_ND_1)',
+          30: '带CP56Time2a时标的单点信息(M_SP_TB_1)',
+          31: '带CP56Time2a时标的双点信息(M_DP_TB_1)',
+          32: '带CP56Time2a时标的步位置信息(M_ST_TB_1)',
+          33: '带CP56Time2a时标的32比特串(M_BO_TB_1)',
+          34: '带CP56Time2a时标的测量值，规一化值(M_ME_TD_1)',
+          35: '带CP56Time2a时标的测量值，标度化值(M_ME_TE_1)',
+          36: '带CP56Time2a时标的测量值，短浮点数(M_ME_TF_1)',
+          37: '带CP56Time2a时标的累计量(M_IT_TB_1)',
+          38: '带CP56Time2a时标的继电保护事件(M_EP_TD_1)',
+          39: '带CP56Time2a时标的继电保护成组启动事件(M_EP_TE_1)',
+          40: '带CP56Time2a时标的继电保护成组输出电路信息(M_EP_TF_1)',
+          45: '单命令(C_SC_NA_1)',
+          46: '双命令(C_DC_NA_1)',
+          47: '步调节命令(C_RC_NA_1)',
+          48: '设定值命令，归一化值(C_SE_NA_1)',
+          49: '设定值命令，标度化值(C_SE_NB_1)',
+          50: '设定值命令，短浮点数(C_SE_NC_1)',
+          51: '32比特串(C_BO_NA_1)',
+          58: '带CP56Time2a时标的单命令(C_SC_TA_1)',
+          59: '带CP56Time2a时标的双命令(C_DC_TA_1)',
+          60: '带CP56Time2a时标的步调节命令(C_RC_TA_1)',
+          61: '带CP56Time2a时标的设定值命令，归一化值(C_SE_TA_1)',
+          62: '带CP56Time2a时标的设定值命令，标度化值(C_SE_TB_1)',
+          63: '带CP56Time2a时标的设定值命令，短浮点数(C_SE_TC_1)',
+          64: '带CP56Time2a时标的32比特串(C_BO_TA_1)',
+          70: '初始化结束(M_EI_NA_1)',
+          100: '总召唤命令(C_IC_NA_1)',
+          101: '电能脉冲召唤命令(C_CI_NA_1)',
+          102: '读命令(C_RD_NA_1)',
+          103: '时钟同步命令(C_CS_NA_1)',
+          104: '测试命令(C_TS_NA_1)',
+          105: '复位进程命令(C_RP_NA_1)',
+          106: '延时获得命令(C_CD_NA_1)',
+          107: '测试命令带时标CP56Time2a(C_TS_TA_1)',
+          110: '参数命令，归一化值(P_ME_NA_1)',
+          111: '参数命令，标度化值(P_ME_NB_1)',
+          112: '参数命令，短浮点数(P_ME_NC_1)',
+          113: '参数激活(P_AC_NA_1)',
+          120: '文件准备就绪(F_FR_NA_1)',
+          121: '节准备就绪(F_SR_NA_1)',
+          122: '召唤目录，选择文件，召唤文件，召唤节(F_SC_NA_1)',
+          123: '最后的节，最后的段(F_LS_NA_1)',
+          124: '确认文件，确认节(F_AF_NA_1)',
+          125: '段(F_SG_NA_1)',
+          126: '目录(F_DR_TA_1)',
+          127: '带确认的查询日志(F_SC_NB_1)'
+        };
+        return types[typeId] || `未知类型ID: ${typeId}`;
+      }
+
+      getCotName(cot) {
+        const causes = {
+          0: '未用',
+          1: '周期、循环',
+          2: '背景扫描',
+          3: '突发',
+          4: '初始化',
+          5: '请求或者被请求',
+          6: '激活',
+          7: '激活确认',
+          8: '停止激活',
+          9: '停止激活确认',
+          10: '激活终止',
+          11: '远方命令引起的返送信息',
+          12: '当地命令引起的返送信息',
+          13: '文件传输',
+          20: '站总召唤',
+          21: '第1组召唤',
+          22: '第2组召唤',
+          23: '第3组召唤',
+          24: '第4组召唤',
+          25: '第5组召唤',
+          26: '第6组召唤',
+          27: '第7组召唤',
+          28: '第8组召唤',
+          29: '第9组召唤',
+          30: '第10组召唤',
+          31: '第11组召唤',
+          32: '第12组召唤',
+          33: '第13组召唤',
+          34: '第14组召唤',
+          35: '第15组召唤',
+          36: '第16组召唤',
+          37: '累计量总召唤',
+          38: '第1组累计量召唤',
+          39: '第2组累计量召唤',
+          40: '第3组累计量召唤',
+          41: '第4组累计量召唤',
+          44: '未知的类型标识',
+          45: '未知的传送原因',
+          46: '未知的应用服务数据单元公共地址',
+          47: '未知的信息对象地址'
+        };
+        return causes[cot] || `未知传送原因: ${cot}`;
+      }
+
+      loadDeviceMapping(mappingObject) {
+        this.customDeviceMapping = mappingObject;
+      }
+
+      getDeviceName(address) {
+        if (this.customDeviceMapping && this.customDeviceMapping[address]) {
+          return this.customDeviceMapping[address];
+        }
+        
+        const defaultMapping = {
+          1: "1号进线柜",
+          2: "2号进线柜",
+          3: "1号馈线柜",
+          4: "2号馈线柜",
+          5: "3号馈线柜",
+          6: "4号馈线柜",
+          7: "5号馈线柜",
+          8: "6号馈线柜",
+          9: "1号母联柜",
+          10: "2号母联柜",
+          11: "电容柜",
+          12: "PT柜",
+          13: "1号变压器",
+          14: "2号变压器",
+          15: "发电机组"
+        };
+        
+        return defaultMapping[address] || `设备地址: ${address}`;
+      }
+
+      getStatistics() {
+        return {
+          ...this.statistics,
+          successRate: this.statistics.totalParsed > 0 
+            ? ((this.statistics.successCount / this.statistics.totalParsed) * 100).toFixed(1) + '%'
+            : '0%'
+        };
+      }
+    }
+
+    // ===========================
+    // IEC 101 解析器类
+    // ===========================
+    class IEC101Parser {
+      constructor() {
+        this.warnings = [];
+        this.iec104Parser = new IEC104Parser();
+        this.statistics = {
+          totalParsed: 0,
+          successCount: 0,
+          errorCount: 0
+        };
+      }
+
+      parse(bytes) {
+        this.warnings = [];
+        this.statistics.totalParsed++;
+
+        try {
+          if (bytes.length < 5) {
+            throw new Error('101报文长度太短，至少需要5个字节');
+          }
+
+          const result = {
+            raw: Utils.bytesToHexString(bytes),
+            protocol: 'IEC101',
+            timestamp: new Date().toISOString(),
+            frameType: null,
+            fields: {},
+            warnings: this.warnings
+          };
+
+          if (bytes[0] === 0x10) {
+            result.frameType = 'SHORT_FRAME';
+            result.fields = this.parseShortFrame(bytes);
+          } else if (bytes[0] === 0x68) {
+            result.frameType = 'LONG_FRAME';
+            result.fields = this.parseLongFrame(bytes);
+          } else if (bytes[0] === 0xE5) {
+            result.frameType = 'SINGLE_CHAR';
+            result.fields = { type: '单字符确认' };
+          } else {
+            throw new Error(`无效的101报文：起始字符0x${bytes[0].toString(16).toUpperCase()}`);
+          }
+
+          this.statistics.successCount++;
+          return result;
+        } catch (error) {
+          this.statistics.errorCount++;
+          throw error;
+        }
+      }
+
+      parseShortFrame(bytes) {
+        if (bytes.length < 5) {
+          throw new Error('短帧长度不足，需要5个字节');
+        }
+
+        if (bytes[4] !== 0x16) {
+          this.warnings.push(`结束字符不是0x16，而是0x${bytes[4].toString(16).toUpperCase()}`);
+        }
+
+        const controlField = bytes[1];
+        const address = bytes[2];
+        const checksum = bytes[3];
+        const calculatedChecksum = (controlField + address) & 0xFF;
+
+        return {
+          startByte: '0x10',
+          controlField: this.parseControlField(controlField),
+          address: address,
+          checksum: checksum,
+          checksumValid: checksum === calculatedChecksum,
+          endByte: '0x' + Utils.byteToHex(bytes[4])
+        };
+      }
+
+      parseLongFrame(bytes) {
+        if (bytes.length < 7) {
+          throw new Error('长帧长度不足，至少需要7个字节');
+        }
+
+        const length1 = bytes[1];
+        const length2 = bytes[2];
+
+        if (length1 !== length2) {
+          throw new Error(`长度字段不匹配：L1=${length1}, L2=${length2}`);
+        }
+
+        if (bytes[3] !== 0x68) {
+          throw new Error('第二个起始字符不是0x68');
+        }
+
+        const expectedLength = length1 + 6;
+        if (bytes.length < expectedLength) {
+          throw new Error(`数据长度不足：期望${expectedLength}字节，实际${bytes.length}字节`);
+        }
+
+        const controlField = bytes[4];
+        const address = bytes[5];
+        
+        let asdu = null;
+        if (length1 > 2) {
+          asdu = this.iec104Parser.parseASdu(bytes.slice(6, 4 + length1));
+        }
+
+        let calculatedChecksum = 0;
+        for (let i = 4; i < 4 + length1; i++) {
+          calculatedChecksum = (calculatedChecksum + bytes[i]) & 0xFF;
+        }
+
+        const checksum = bytes[4 + length1];
+        const endByte = bytes[5 + length1];
+
+        return {
+          startByte: '0x68',
+          length: length1,
+          controlField: this.parseControlField(controlField),
+          address: address,
+          asdu: asdu,
+          checksum: checksum,
+          checksumValid: checksum === calculatedChecksum,
+          endByte: '0x' + Utils.byteToHex(endByte),
+          endByteValid: endByte === 0x16
+        };
+      }
+
+      parseControlField(controlField) {
+        const functionCode = controlField & 0x0F;
+        const fcb = (controlField & 0x20) !== 0;
+        const fcv = (controlField & 0x10) !== 0;
+        const prm = (controlField & 0x40) !== 0;
+        const dir = (controlField & 0x80) !== 0;
+
+        return {
+          raw: '0x' + Utils.byteToHex(controlField),
+          functionCode: functionCode,
+          functionName: this.getFunctionName(controlField),
+          direction: dir ? '从站到主站' : '主站到从站',
+          prm: prm ? '启动站' : '从动站',
+          fcb: fcb,
+          fcv: fcv
+        };
+      }
+
+      getFunctionName(controlField) {
+        const functionCode = controlField & 0x0F;
+        const prm = (controlField & 0x40) !== 0;
+
+        if (prm) {
+          // 主站功能码
+          const primaryFunctions = {
+            0: '复位远方链路',
+            1: '复位用户进程',
+            3: '发送/确认用户数据',
+            4: '发送/无回答用户数据',
+            8: '访问请求',
+            9: '请求链路状态',
+            10: '请求1级用户数据',
+            11: '请求2级用户数据'
+          };
+          return primaryFunctions[functionCode] || `未知主站功能码: ${functionCode}`;
+        } else {
+          // 从站功能码
+          const secondaryFunctions = {
+            0: '确认',
+            1: '链路忙/未收到报文',
+            8: '响应用户数据',
+            9: '无所请求的用户数据',
+            11: '链路状态'
+          };
+          return secondaryFunctions[functionCode] || `未知从站功能码: ${functionCode}`;
+        }
+      }
+
+      getStatistics() {
+        return {
+          ...this.statistics,
+          successRate: this.statistics.totalParsed > 0 
+            ? ((this.statistics.successCount / this.statistics.totalParsed) * 100).toFixed(1) + '%'
+            : '0%'
+        };
+      }
+    }
+
+    // ===========================
+    // 结果格式化器
+    // ===========================
+    class ResultFormatter {
+      static formatIEC104Result(result) {
+        let html = '<div style="font-family: monospace;">';
+        
+        // 报文头信息
+        html += '<div style="background: #f0f8ff; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+        html += `<div><strong>协议类型:</strong> IEC 60870-5-104</div>`;
+        html += `<div><strong>原始报文:</strong> <span style="color: #0066cc;">${result.raw}</span></div>`;
+        html += `<div><strong>解析时间:</strong> ${new Date(result.timestamp).toLocaleString()}</div>`;
+        html += '</div>';
+
+        // APCI信息
+        html += '<div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+        html += '<h4 style="margin-top: 0; color: #333;">APCI (应用协议控制信息)</h4>';
+        html += `<div><strong>起始字节:</strong> ${result.apci.startByte}</div>`;
+        html += `<div><strong>APDU长度:</strong> ${result.apci.length} 字节</div>`;
+        html += `<div><strong>控制域类型:</strong> <span style="color: #009900;">${result.controlFields.type}</span></div>`;
+        
+        if (result.controlFields.type === 'I_FORMAT') {
+          html += `<div><strong>发送序号:</strong> ${result.controlFields.sendSeqNum}</div>`;
+          html += `<div><strong>接收序号:</strong> ${result.controlFields.receiveSeqNum}</div>`;
+        } else if (result.controlFields.type === 'S_FORMAT') {
+          html += `<div><strong>接收序号:</strong> ${result.controlFields.receiveSeqNum}</div>`;
+        } else {
+          html += `<div><strong>功能:</strong> ${result.controlFields.function}</div>`;
+        }
+        html += '</div>';
+
+        // ASDU信息
+        if (result.asdu && !result.asdu.error) {
+          html += '<div style="background: #fff8e1; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+          html += '<h4 style="margin-top: 0; color: #333;">ASDU (应用服务数据单元)</h4>';
+          html += `<div><strong>类型标识:</strong> ${result.asdu.typeId} - ${result.asdu.typeIdName}</div>`;
+          html += `<div><strong>可变结构:</strong> ${result.asdu.variableStructure ? '是(SQ=1)' : '否(SQ=0)'}</div>`;
+          html += `<div><strong>信息对象数:</strong> ${result.asdu.numberOfObjects}</div>`;
+          html += `<div><strong>传送原因:</strong> ${result.asdu.causeOfTransmission.code} - ${result.asdu.causeOfTransmission.name}</div>`;
+          html += `<div><strong>测试位:</strong> ${result.asdu.causeOfTransmission.test ? '是' : '否'}</div>`;
+          html += `<div><strong>否定确认:</strong> ${result.asdu.causeOfTransmission.negative ? '是' : '否'}</div>`;
+          html += `<div><strong>源地址:</strong> ${result.asdu.originatorAddress}</div>`;
+          html += `<div><strong>公共地址:</strong> ${result.asdu.commonAddress}</div>`;
+          html += '</div>';
+
+          // 信息对象
+          if (result.asdu.informationObjects && result.asdu.informationObjects.length > 0) {
+            html += '<div style="background: #e8f5e9; padding: 10px; border-radius: 4px;">';
+            html += '<h4 style="margin-top: 0; color: #333;">信息对象</h4>';
+            
+            result.asdu.informationObjects.forEach((io, index) => {
+              html += `<div style="background: white; padding: 10px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #4caf50;">`;
+              html += `<div><strong>对象 ${index + 1}:</strong></div>`;
+              html += `<div style="margin-left: 20px;">`;
+              html += `<div><strong>地址:</strong> ${io.address}</div>`;
+              html += `<div><strong>设备:</strong> <span style="color: #1976d2;">${io.deviceName}</span></div>`;
+              
+              if (io.elements && io.elements.length > 0) {
+                io.elements.forEach((element, elemIndex) => {
+                  html += '<div style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px;">';
+                  html += this.formatElement(element);
+                  html += '</div>';
+                });
+              }
+              
+              if (io.timeTag) {
+                html += '<div style="margin-top: 10px;">';
+                html += `<strong>时标:</strong> ${io.timeTag.formatted}`;
+                if (io.timeTag.invalid) {
+                  html += ' <span style="color: red;">(无效)</span>';
+                }
+                html += '</div>';
+              }
+              
+              html += '</div>';
+              html += '</div>';
+            });
+            
+            html += '</div>';
+          }
+        }
+
+        // 警告信息
+        if (result.warnings && result.warnings.length > 0) {
+          html += '<div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px; border-left: 4px solid #ffc107;">';
+          html += '<h4 style="margin-top: 0; color: #856404;">⚠️ 警告</h4>';
+          result.warnings.forEach(warning => {
+            html += `<div>• ${warning}</div>`;
+          });
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+
+      static formatElement(element) {
+        let html = `<div><strong>类型:</strong> ${element.type}</div>`;
+        
+        switch (element.type) {
+          case 'SinglePoint':
+            html += `<div><strong>状态:</strong> <span style="color: ${element.value ? '#4caf50' : '#f44336'};">${element.state}</span></div>`;
+            html += this.formatQuality(element.quality);
+            break;
+            
+          case 'DoublePoint':
+            html += `<div><strong>状态:</strong> <span style="color: ${element.value === 2 ? '#4caf50' : element.value === 1 ? '#f44336' : '#ff9800'};">${element.state}</span></div>`;
+            html += this.formatQuality(element.quality);
+            break;
+            
+          case 'NormalizedValue':
+            html += `<div><strong>值:</strong> ${element.value.toFixed(4)} (${element.percentage})</div>`;
+            html += `<div><strong>原始值:</strong> ${element.rawValue}</div>`;
+            html += this.formatQuality(element.quality);
+            break;
+            
+          case 'ScaledValue':
+            html += `<div><strong>值:</strong> ${element.value}</div>`;
+            html += this.formatQuality(element.quality);
+            break;
+            
+          case 'FloatValue':
+            html += `<div><strong>值:</strong> ${element.formatted}</div>`;
+            html += this.formatQuality(element.quality);
+            break;
+            
+          case 'SingleCommand':
+          case 'DoubleCommand':
+            html += `<div><strong>命令:</strong> ${element.command || element.state}</div>`;
+            html += `<div><strong>限定词:</strong> ${element.qualifier}</div>`;
+            html += `<div><strong>操作:</strong> ${element.select}</div>`;
+            break;
+            
+          case 'InterrogationCommand':
+            html += `<div><strong>描述:</strong> ${element.description}</div>`;
+            break;
+            
+          default:
+            html += `<div><strong>原始值:</strong> ${element.rawValue}</div>`;
+        }
+        
+        return html;
+      }
+
+      static formatQuality(quality) {
+        if (!quality) return '';
+        
+        let html = '<div><strong>品质:</strong> ';
+        const flags = [];
+        
+        if (quality.invalid) flags.push('<span style="color: red;">无效</span>');
+        if (quality.notTopical) flags.push('<span style="color: orange;">非当前值</span>');
+        if (quality.substituted) flags.push('<span style="color: blue;">被取代</span>');
+        if (quality.blocked) flags.push('<span style="color: purple;">被封锁</span>');
+        if (quality.overflow) flags.push('<span style="color: brown;">溢出</span>');
+        
+        html += flags.length > 0 ? flags.join(', ') : '<span style="color: green;">正常</span>';
+        html += '</div>';
+        
+        return html;
+      }
+
+      static formatIEC101Result(result) {
+        let html = '<div style="font-family: monospace;">';
+        
+        // 报文头信息
+        html += '<div style="background: #f0f8ff; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+        html += `<div><strong>协议类型:</strong> IEC 60870-5-101</div>`;
+        html += `<div><strong>原始报文:</strong> <span style="color: #0066cc;">${result.raw}</span></div>`;
+        html += `<div><strong>帧类型:</strong> ${this.getFrameTypeName(result.frameType)}</div>`;
+        html += `<div><strong>解析时间:</strong> ${new Date(result.timestamp).toLocaleString()}</div>`;
+        html += '</div>';
+
+        // 帧信息
+        if (result.frameType === 'SHORT_FRAME') {
+          html += this.formatShortFrame(result.fields);
+        } else if (result.frameType === 'LONG_FRAME') {
+          html += this.formatLongFrame(result.fields);
+        } else if (result.frameType === 'SINGLE_CHAR') {
+          html += '<div style="background: #e8f5e9; padding: 10px; border-radius: 4px;">单字符确认帧 (E5)</div>';
+        }
+
+        // 警告信息
+        if (result.warnings && result.warnings.length > 0) {
+          html += '<div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px; border-left: 4px solid #ffc107;">';
+          html += '<h4 style="margin-top: 0; color: #856404;">⚠️ 警告</h4>';
+          result.warnings.forEach(warning => {
+            html += `<div>• ${warning}</div>`;
+          });
+          html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+      }
+
+      static getFrameTypeName(frameType) {
+        const types = {
+          'SHORT_FRAME': '固定长度帧',
+          'LONG_FRAME': '可变长度帧',
+          'SINGLE_CHAR': '单字符帧'
+        };
+        return types[frameType] || frameType;
+      }
+
+      static formatShortFrame(fields) {
+        let html = '<div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+        html += '<h4 style="margin-top: 0; color: #333;">固定长度帧</h4>';
+        html += `<div><strong>起始字节:</strong> ${fields.startByte}</div>`;
+        html += `<div><strong>控制域:</strong> ${fields.controlField.raw}</div>`;
+        html += `<div style="margin-left: 20px;">`;
+        html += `<div><strong>功能:</strong> ${fields.controlField.functionName}</div>`;
+        html += `<div><strong>方向:</strong> ${fields.controlField.direction}</div>`;
+        html += `<div><strong>PRM:</strong> ${fields.controlField.prm}</div>`;
+        html += `<div><strong>FCB:</strong> ${fields.controlField.fcb ? '1' : '0'}</div>`;
+        html += `<div><strong>FCV:</strong> ${fields.controlField.fcv ? '1' : '0'}</div>`;
+        html += `</div>`;
+        html += `<div><strong>地址域:</strong> ${fields.address}</div>`;
+        html += `<div><strong>校验和:</strong> ${fields.checksum} ${fields.checksumValid ? '✓' : '✗ 错误'}</div>`;
+        html += `<div><strong>结束字节:</strong> ${fields.endByte}</div>`;
+        html += '</div>';
+        return html;
+      }
+
+      static formatLongFrame(fields) {
+        let html = '<div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">';
+        html += '<h4 style="margin-top: 0; color: #333;">可变长度帧</h4>';
+        html += `<div><strong>起始字节:</strong> ${fields.startByte}</div>`;
+        html += `<div><strong>长度:</strong> ${fields.length} 字节</div>`;
+        html += `<div><strong>控制域:</strong> ${fields.controlField.raw}</div>`;
+        html += `<div style="margin-left: 20px;">`;
+        html += `<div><strong>功能:</strong> ${fields.controlField.functionName}</div>`;
+        html += `<div><strong>方向:</strong> ${fields.controlField.direction}</div>`;
+        html += `<div><strong>PRM:</strong> ${fields.controlField.prm}</div>`;
+        html += `<div><strong>FCB:</strong> ${fields.controlField.fcb ? '1' : '0'}</div>`;
+        html += `<div><strong>FCV:</strong> ${fields.controlField.fcv ? '1' : '0'}</div>`;
+        html += `</div>`;
+        html += `<div><strong>地址域:</strong> ${fields.address}</div>`;
+        
+        if (fields.asdu && !fields.asdu.error) {
+          html += '<div style="margin-top: 10px; padding: 10px; background: #fff8e1; border-radius: 4px;">';
+          html += '<h5 style="margin-top: 0;">ASDU 数据</h5>';
+          html += `<div><strong>类型:</strong> ${fields.asdu.typeId} - ${fields.asdu.typeIdName}</div>`;
+          html += `<div><strong>传送原因:</strong> ${fields.asdu.causeOfTransmission.name}</div>`;
+          html += '</div>';
+        }
+        
+        html += `<div><strong>校验和:</strong> ${fields.checksum} ${fields.checksumValid ? '✓' : '✗ 错误'}</div>`;
+        html += `<div><strong>结束字节:</strong> ${fields.endByte} ${fields.endByteValid ? '✓' : '✗ 错误'}</div>`;
+        html += '</div>';
+        return html;
+      }
+
+      static formatHexAnalysis(bytes) {
+        let html = '<div style="font-family: monospace;">';
+        html += '<h4>十六进制分析</h4>';
+        html += '<table style="border-collapse: collapse; width: 100%;">';
+        html += '<tr style="background: #f5f5f5;">';
+        html += '<th style="border: 1px solid #ddd; padding: 8px;">位置</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 8px;">十六进制</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 8px;">十进制</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 8px;">二进制</th>';
+        html += '<th style="border: 1px solid #ddd; padding: 8px;">ASCII</th>';
+        html += '</tr>';
+        
+        bytes.forEach((byte, index) => {
+          const ascii = byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.';
+          html += '<tr>';
+          html += `<td style="border: 1px solid #ddd; padding: 8px;">${index}</td>`;
+          html += `<td style="border: 1px solid #ddd; padding: 8px; color: #0066cc;">${Utils.byteToHex(byte)}</td>`;
+          html += `<td style="border: 1px solid #ddd; padding: 8px;">${byte}</td>`;
+          html += `<td style="border: 1px solid #ddd; padding: 8px; font-size: 12px;">${byte.toString(2).padStart(8, '0')}</td>`;
+          html += `<td style="border: 1px solid #ddd; padding: 8px;">${ascii}</td>`;
+          html += '</tr>';
+        });
+        
+        html += '</table>';
+        html += '</div>';
+        return html;
+      }
+
+      static exportToExcel(results) {
+        let csv = 'No,时间戳,协议,原始报文,类型,传送原因,设备地址,设备名称,状态/值,品质,解析结果\n';
+        
+        results.forEach((item, index) => {
+          if (item.success) {
+            const result = item.result;
+            let row = [
+              index + 1,
+              new Date(result.timestamp).toLocaleString(),
+              result.protocol || 'IEC104',
+              result.raw
+            ];
+            
+            if (result.asdu && result.asdu.informationObjects) {
+              result.asdu.informationObjects.forEach(io => {
+                io.elements.forEach(elem => {
+                  const rowData = [...row];
+                  rowData.push(result.asdu.typeIdName || '');
+                  rowData.push(result.asdu.causeOfTransmission.name || '');
+                  rowData.push(io.address || '');
+                  rowData.push(io.deviceName || '');
+                  rowData.push(elem.state || elem.value || elem.command || '');
+                  rowData.push(elem.quality ? (elem.quality.invalid ? '无效' : '正常') : '');
+                  rowData.push('成功');
+                  csv += rowData.map(v => `"${v}"`).join(',') + '\n';
+                });
+              });
+            } else {
+              row.push('', '', '', '', '', '', '成功');
+              csv += row.map(v => `"${v}"`).join(',') + '\n';
+            }
+          } else {
+            csv += `${index + 1},"","","","","","","","","","失败: ${item.error}"\n`;
+          }
+        });
+        
+        // 添加BOM以支持中文
+        const BOM = '\uFEFF';
+        return BOM + csv;
+      }
+    }
+
+    // ===========================
+    // 日志管理器
+    // ===========================
+    class LogManager {
+      constructor(outputElement) {
+        this.outputElement = outputElement;
+        this.entries = [];
+      }
+
+      log(message, type = 'info') {
+        const entry = {
+          timestamp: new Date(),
+          message: message,
+          type: type
+        };
+        
+        this.entries.push(entry);
+        if (this.entries.length > Config.LOG_MAX_ENTRIES) {
+          this.entries.shift();
+        }
+        
+        this.render();
+      }
+
+      clear() {
+        this.entries = [];
+        this.render();
+      }
+
+      render() {
+        const html = this.entries.map(entry => {
+          const time = entry.timestamp.toLocaleTimeString();
+          const className = `log-entry ${entry.type}`;
+          return `<div class="${className}">[${time}] ${entry.message}</div>`;
+        }).join('');
+        
+        this.outputElement.innerHTML = html;
+        this.outputElement.scrollTop = this.outputElement.scrollHeight;
+      }
+    }
+
+    // ===========================
+    // 应用程序主类
+    // ===========================
+    class IECProtocolParserApp {
+      constructor() {
+        this.initializeElements();
+        this.initializeMapppings();
+        this.initializeEventListeners();
+        this.initializeStatistics();
+        
+        this.logManager = new LogManager(this.elements.logOutput);
+        this.iec104Parser = new IEC104Parser();
+        this.iec101Parser = new IEC101Parser();
+        
+        this.currentResults = null;
+        this.logManager.log('应用程序已启动', 'success');
+      }
+
+      initializeElements() {
+        this.elements = {
+          // 输入控件
+          protocolSelect: document.getElementById('protocol'),
+          hexInput: document.getElementById('hexInput'),
+          batchMode: document.getElementById('batchMode'),
+          autoTimestamp: document.getElementById('autoTimestamp'),
+          
+          // 映射控件
+          deviceMappingSelect: document.getElementById('deviceMappingSelect'),
+          customMappingArea: document.getElementById('customMappingArea'),
+          customMappingInput: document.getElementById('customMappingInput'),
+          
+          // 按钮
+          parseButton: document.getElementById('parseButton'),
+          clearButton: document.getElementById('clearButton'),
+          downloadResultButton: document.getElementById('downloadResultButton'),
+          exportExcelButton: document.getElementById('exportExcelButton'),
+          loadMappingTemplate: document.getElementById('loadMappingTemplate'),
+          clearLogButton: document.getElementById('clearLogButton'),
+          
+          // 输出区域
+          parsedOutput: document.getElementById('parsed'),
+          jsonOutput: document.getElementById('json'),
+          hexOutput: document.getElementById('hex'),
+          logOutput: document.getElementById('logOutput'),
+          parseError: document.getElementById('parseError'),
+          
+          // 统计
+          statsGrid: document.getElementById('statsGrid'),
+          totalParsed: document.getElementById('totalParsed'),
+          successRate: document.getElementById('successRate'),
+          lastProtocol: document.getElementById('lastProtocol'),
+          
+          // 其他
+          tabs: document.querySelectorAll('.tab'),
+          examples: document.querySelectorAll('.example')
+        };
+      }
+
+      initializeMapppings() {
+        this.availableMappings = {
+          default: {
+            1: "1号进线柜",
+            2: "2号进线柜",
+            3: "1号馈线柜",
+            4: "2号馈线柜",
+            5: "3号馈线柜",
+            6: "4号馈线柜",
+            7: "5号馈线柜",
+            8: "6号馈线柜",
+            9: "1号母联柜",
+            10: "2号母联柜",
+            11: "电容柜",
+            12: "PT柜"
+          },
+          extended: {
+            1: "主进线柜",
+            2: "备用进线柜",
+            3: "主馈线柜",
+            4: "备用馈线柜",
+            5: "电容器柜1",
+            6: "电容器柜2",
+            7: "母线PT柜",
+            8: "线路PT柜",
+            9: "接地变柜",
+            10: "站用变柜"
+          },
+          substation: {
+            1: "110kV进线1",
+            2: "110kV进线2",
+            3: "主变高压侧",
+            4: "主变低压侧",
+            5: "10kV母线1",
+            6: "10kV母线2",
+            7: "10kV出线1",
+            8: "10kV出线2",
+            9: "10kV出线3",
+            10: "10kV出线4"
+          }
+        };
+        
+        this.currentMapping = this.availableMappings.default;
+      }
+
+      initializeEventListeners() {
+        // 解析按钮
+        this.elements.parseButton.addEventListener('click', () => this.handleParse());
+        
+        // 清空按钮
+        this.elements.clearButton.addEventListener('click', () => this.handleClear());
+        
+        // 下载结果按钮
+        this.elements.downloadResultButton.addEventListener('click', () => this.handleDownload());
+        
+        // 导出Excel按钮
+        this.elements.exportExcelButton.addEventListener('click', () => this.handleExportExcel());
+        
+        // 设备映射选择
+        this.elements.deviceMappingSelect.addEventListener('change', (e) => this.handleMappingChange(e));
+        
+        // 加载映射模板
+        this.elements.loadMappingTemplate.addEventListener('click', () => this.loadMappingTemplate());
+        
+        // 清空日志按钮
+        this.elements.clearLogButton.addEventListener('click', () => this.logManager.clear());
+        
+        // 标签页切换
+        this.elements.tabs.forEach(tab => {
+          tab.addEventListener('click', (e) => this.handleTabSwitch(e));
+        });
+        
+        // 示例点击
+        this.elements.examples.forEach(example => {
+          example.addEventListener('click', (e) => this.handleExampleClick(e));
+        });
+        
+        // 输入框自动保存
+        this.elements.hexInput.addEventListener('input', 
+          Utils.debounce(() => this.saveInputToLocalStorage(), 1000)
+        );
+        
+        // 页面加载时恢复输入
+        this.loadInputFromLocalStorage();
+      }
+
+      initializeStatistics() {
+        this.statistics = {
+          totalParsed: 0,
+          successCount: 0,
+          lastProtocol: '-'
+        };
+        this.updateStatisticsDisplay();
+      }
+
+      handleParse() {
+        this.clearError();
+        const hexText = this.elements.hexInput.value.trim();
+        
+        if (!hexText) {
+          this.showError('请输入十六进制报文数据');
+          return;
+        }
+        
+        this.logManager.log(`开始解析${this.elements.batchMode.checked ? '批量' : '单条'}报文...`);
+        
+        try {
+          const mapping = this.getCurrentMapping();
+          
+          if (this.elements.batchMode.checked) {
+            this.batchParse(hexText, mapping);
+          } else {
+            this.singleParse(hexText, mapping);
+          }
+          
+          this.elements.statsGrid.style.display = 'grid';
+          this.updateStatisticsDisplay();
+          
+        } catch (error) {
+          this.showError(error.message);
+          this.logManager.log(`解析失败: ${error.message}`, 'error');
+        }
+      }
+
+      singleParse(hexString, mapping) {
+        try {
+          const bytes = Utils.hexStringToBytes(hexString);
+          const protocol = this.elements.protocolSelect.value;
+          let result;
+          
+          if (protocol === '104') {
+            this.iec104Parser.loadDeviceMapping(mapping);
+            result = this.iec104Parser.parse(bytes);
+          } else {
+            this.iec101Parser.iec104Parser.loadDeviceMapping(mapping);
+            result = this.iec101Parser.parse(bytes);
+          }
+          
+          if (this.elements.autoTimestamp.checked) {
+            result.userTimestamp = Utils.formatDateTime();
+          }
+          
+          this.currentResults = [{ success: true, result: result }];
+          this.displayResult(result);
+          
+          this.statistics.totalParsed++;
+          this.statistics.successCount++;
+          this.statistics.lastProtocol = protocol.toUpperCase();
+          
+          this.logManager.log('报文解析成功', 'success');
+          
+        } catch (error) {
+          this.statistics.totalParsed++;
+          throw error;
+        }
+      }
+
+      batchParse(hexText, mapping) {
+        const lines = hexText.split('\n')
+          .map(line => line.trim())
+          .filter(line => line !== '');
+        
+        if (lines.length > Config.MAX_BATCH_SIZE) {
+          throw new Error(`批量解析数量超过限制 (最大: ${Config.MAX_BATCH_SIZE}条)`);
+        }
+        
+        const results = [];
+        const protocol = this.elements.protocolSelect.value;
+        
+        lines.forEach((line, index) => {
+          try {
+            const bytes = Utils.hexStringToBytes(line);
+            let result;
+            
+            if (protocol === '104') {
+              this.iec104Parser.loadDeviceMapping(mapping);
+              result = this.iec104Parser.parse(bytes);
+            } else {
+              this.iec101Parser.iec104Parser.loadDeviceMapping(mapping);
+              result = this.iec101Parser.parse(bytes);
+            }
+            
+            if (this.elements.autoTimestamp.checked) {
+              result.userTimestamp = Utils.formatDateTime();
+            }
+            
+            results.push({
+              line: index + 1,
+              success: true,
+              result: result
+            });
+            
+            this.statistics.successCount++;
+            
+          } catch (error) {
+            results.push({
+              line: index + 1,
+              success: false,
+              error: error.message
+            });
+            
+            this.logManager.log(`第${index + 1}条报文解析失败: ${error.message}`, 'error');
+          }
+          
+          this.statistics.totalParsed++;
+        });
+        
+        this.currentResults = results;
+        this.displayBatchResults(results);
+        
+        this.statistics.lastProtocol = protocol.toUpperCase();
+        
+        const successCount = results.filter(r => r.success).length;
+        this.logManager.log(`批量解析完成: 成功 ${successCount}/${lines.length} 条`, 'success');
+      }
+
+      getCurrentMapping() {
+        const selectedMapping = this.elements.deviceMappingSelect.value;
+        
+        if (selectedMapping === 'custom') {
+          const customText = this.elements.customMappingInput.value.trim();
+          if (!customText) {
+            throw new Error('请输入自定义映射数据');
+          }
+          
+          try {
+            return JSON.parse(customText);
+          } catch (error) {
+            throw new Error('自定义映射格式错误，请检查JSON格式');
+          }
+        }
+        
+        return this.availableMappings[selectedMapping] || this.availableMappings.default;
+      }
+
+      displayResult(result) {
+        // 清空输出
+        this.clearOutputs();
+        
+        // 格式化显示
+        if (result.protocol === 'IEC101' || result.frameType) {
+          this.elements.parsedOutput.innerHTML = ResultFormatter.formatIEC101Result(result);
+        } else {
+          this.elements.parsedOutput.innerHTML = ResultFormatter.formatIEC104Result(result);
+        }
+        
+        // JSON显示
+        this.elements.jsonOutput.textContent = JSON.stringify(result, null, 2);
+        
+        // 十六进制分析
+        try {
+          const bytes = Utils.hexStringToBytes(result.raw);
+          this.elements.hexOutput.innerHTML = ResultFormatter.formatHexAnalysis(bytes);
+        } catch (error) {
+          this.elements.hexOutput.innerHTML = '<div>无法进行十六进制分析</div>';
+        }
+      }
+
+      displayBatchResults(results) {
+        this.clearOutputs();
+        
+        let html = '<div style="margin-bottom: 20px;">';
+        html += `<h3>批量解析结果汇总</h3>`;
+        html += `<div>总计: ${results.length} 条</div>`;
+        html += `<div>成功: ${results.filter(r => r.success).length} 条</div>`;
+        html += `<div>失败: ${results.filter(r => !r.success).length} 条</div>`;
+        html += '</div>';
+        
+        // 显示每条结果
+        results.forEach(item => {
+          html += '<div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px;">';
+          html += `<div style="font-weight: bold; margin-bottom: 10px;">第 ${item.line} 条报文</div>`;
+          
+          if (item.success) {
+            if (item.result.protocol === 'IEC101' || item.result.frameType) {
+              html += ResultFormatter.formatIEC101Result(item.result);
+            } else {
+              html += ResultFormatter.formatIEC104Result(item.result);
+            }
+          } else {
+            html += `<div style="color: red;">解析失败: ${item.error}</div>`;
+          }
+          
+          html += '</div>';
+        });
+        
+        this.elements.parsedOutput.innerHTML = html;
+        
+        // JSON显示
+        this.elements.jsonOutput.textContent = JSON.stringify(results, null, 2);
+      }
+
+      handleClear() {
+        this.elements.hexInput.value = '';
+        this.clearOutputs();
+        this.clearError();
+        this.currentResults = null;
+        this.logManager.log('已清空所有内容');
+        localStorage.removeItem('iec-parser-input');
+      }
+
+      clearOutputs() {
+        this.elements.parsedOutput.innerHTML = '';
+        this.elements.jsonOutput.textContent = '';
+        this.elements.hexOutput.innerHTML = '';
+      }
+
+      handleDownload() {
+        if (!this.currentResults) {
+          alert('没有可下载的解析结果');
+          return;
+        }
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `IEC_解析结果_${timestamp}.json`;
+        const content = JSON.stringify(this.currentResults, null, 2);
+        
+        Utils.downloadFile(content, filename);
+        this.logManager.log(`已下载解析结果: ${filename}`, 'success');
+      }
+
+      handleExportExcel() {
+        if (!this.currentResults) {
+          alert('没有可导出的数据');
+          return;
+        }
+        
+        const csv = ResultFormatter.exportToExcel(this.currentResults);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `IEC_解析报表_${timestamp}.csv`;
+        
+        Utils.downloadFile(csv, filename, 'text/csv;charset=utf-8');
+        this.logManager.log(`已导出Excel报表: ${filename}`, 'success');
+      }
+
+      handleMappingChange(event) {
+        const selected = event.target.value;
+        
+        if (selected === 'custom') {
+          this.elements.customMappingArea.style.display = 'block';
+        } else {
+          this.elements.customMappingArea.style.display = 'none';
+          this.currentMapping = this.availableMappings[selected];
+        }
+        
+        this.logManager.log(`切换到${selected}映射方案`);
+      }
+
+      loadMappingTemplate() {
+        const template = {
+          "1": "设备名称1",
+          "2": "设备名称2",
+          "3": "设备名称3",
+          "100": "特殊设备100",
+          "0x1000": "高地址设备"
+        };
+        
+        this.elements.customMappingInput.value = JSON.stringify(template, null, 2);
+        this.logManager.log('已加载映射模板');
+      }
+
+      handleTabSwitch(event) {
+        const target = event.currentTarget.getAttribute('data-target');
+        
+        // 更新标签状态
+        this.elements.tabs.forEach(tab => {
+          tab.classList.remove('active');
+        });
+        event.currentTarget.classList.add('active');
+        
+        // 切换内容显示
+        ['parsed', 'json', 'hex'].forEach(id => {
+          document.getElementById(id).style.display = id === target ? 'block' : 'none';
+        });
+      }
+
+      handleExampleClick(event) {
+        const example = event.currentTarget;
+        const protocol = example.getAttribute('data-protocol');
+        const hex = example.getAttribute('data-hex');
+        
+        this.elements.protocolSelect.value = protocol;
+        this.elements.hexInput.value = hex;
+        
+        this.logManager.log(`已加载${protocol}协议示例`);
+        
+        // 自动解析
+        this.handleParse();
+      }
+
+      showError(message) {
+        this.elements.parseError.textContent = message;
+        this.elements.parseError.style.display = 'block';
+      }
+
+      clearError() {
+        this.elements.parseError.style.display = 'none';
+      }
+
+      updateStatisticsDisplay() {
+        this.elements.totalParsed.textContent = this.statistics.totalParsed;
+        this.elements.successRate.textContent = this.statistics.totalParsed > 0
+          ? ((this.statistics.successCount / this.statistics.totalParsed) * 100).toFixed(1) + '%'
+          : '0%';
+        this.elements.lastProtocol.textContent = this.statistics.lastProtocol;
+      }
+
+      saveInputToLocalStorage() {
+        const data = {
+          protocol: this.elements.protocolSelect.value,
+          hexInput: this.elements.hexInput.value,
+          batchMode: this.elements.batchMode.checked,
+          autoTimestamp: this.elements.autoTimestamp.checked,
+          deviceMapping: this.elements.deviceMappingSelect.value
+        };
+        
+        localStorage.setItem('iec-parser-input', JSON.stringify(data));
+      }
+
+      loadInputFromLocalStorage() {
+        try {
+          const saved = localStorage.getItem('iec-parser-input');
+          if (saved) {
+            const data = JSON.parse(saved);
+            this.elements.protocolSelect.value = data.protocol || '104';
+            this.elements.hexInput.value = data.hexInput || '';
+            this.elements.batchMode.checked = data.batchMode || false;
+            this.elements.autoTimestamp.checked = data.autoTimestamp || false;
+            this.elements.deviceMappingSelect.value = data.deviceMapping || 'default';
+            
+            this.logManager.log('已恢复上次输入内容');
+          }
+        } catch (error) {
+          console.error('Failed to load saved input:', error);
+        }
+      }
+    }
+
+    // ===========================
+    // 应用程序启动
+    // ===========================
+    document.addEventListener('DOMContentLoaded', function() {
+      // 检查浏览器兼容性
+      if (!window.DataView || !window.ArrayBuffer) {
+        alert('您的浏览器不支持必要的功能，请使用现代浏览器');
+        return;
+      }
+      
+      // 创建应用实例
+      window.app = new IECProtocolParserApp();
+      
+      // 添加键盘快捷键
+      document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + Enter 解析
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          window.app.handleParse();
+        }
+        
+        // Ctrl/Cmd + L 清空
+        if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+          e.preventDefault();
+          window.app.handleClear();
+        }
+        
+        // Ctrl/Cmd + S 下载
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          window.app.handleDownload();
+        }
+      });
+      
+      // 页面离开提醒
+      window.addEventListener('beforeunload', function(e) {
+        if (window.app.currentResults && window.app.elements.hexInput.value.trim()) {
+          e.preventDefault();
+          e.returnValue = '您有未保存的解析结果，确定要离开吗？';
+        }
+      });
+    });
+
+    // 注册Service Worker (可选，用于离线支持)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          // Service Worker 注册失败，不影响主功能
+        });
+      });
+    }
+  </script>
+</body>
+</html>
+        
